@@ -103,69 +103,66 @@ if (char) {
 
   // ── 掉落物理 ──────────────────────────────────────────
   const isFloat = !!char.float;
-  const G=0.18, BOUNCE=0.45, FRIC=0.992, S=52;
+  const S = 52; // object size
+  // gravity physics constants
+  const G = 0.18, BOUNCE = 0.45, FRIC = 0.992;
+  // float physics constants — slow drift with one directional pull
+  const FLOAT_DRIFT = 0.0006; // very gentle constant pull direction (like slow solar wind)
+  const FLOAT_FRIC  = 0.9992;
+  const FLOAT_MAX   = 0.55;   // speed cap — slow and dreamy
+
   const wrap   = document.getElementById('wrap');
   const bodies = [];
   const ITEMS  = char.items;
+  const R = S / 2; // radius for collision
+
+  // pick a single drift direction for this session (simulates one gravity vector)
+  const driftAngle = Math.random() * Math.PI * 2;
+  const driftAx = Math.cos(driftAngle) * FLOAT_DRIFT;
+  const driftAy = Math.sin(driftAngle) * FLOAT_DRIFT;
+
+  function spawnPos() {
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+    const cx = W / 2, half = 120;
+    let x;
+    if (Math.random() < 0.5) x = Math.random() * Math.max(0, cx - half - S);
+    else x = (cx + half) + Math.random() * Math.max(0, W - cx - half - S);
+    return { x: Math.max(0, Math.min(W - S, x)), y: isFloat ? Math.random() * (H - S) : -60 };
+  }
 
   function spawn() {
-    const W = wrap.clientWidth, H = wrap.clientHeight;
-    const cx = W / 2;
-    const illustHalf = 120; // half illust width + buffer
-    let x, y;
-    if (isFloat) {
-      // avoid center illust zone
-      if (Math.random() < 0.5) x = Math.random() * (cx - illustHalf - S);
-      else x = (cx + illustHalf) + Math.random() * (W - cx - illustHalf - S);
-      x = Math.max(0, Math.min(W - S, x));
-      y = Math.random() * (H - S);
-    } else {
-      if (Math.random() < 0.5) x = Math.random() * (cx - illustHalf - S);
-      else x = (cx + illustHalf) + Math.random() * (W - cx - illustHalf - S);
-      x = Math.max(0, Math.min(W - S, x));
-      y = -60;
-    }
-
+    const pos = spawnPos();
     const el = document.createElement('div');
     el.className = 'obj';
     el.textContent = ITEMS[Math.floor(Math.random() * ITEMS.length)];
-    el.style.left = x + 'px';
-    el.style.top  = y + 'px';
+    el.style.left = pos.x + 'px';
+    el.style.top  = pos.y + 'px';
     if (isFloat) el.style.opacity = '0';
     wrap.appendChild(el);
 
     const angle = Math.random() * Math.PI * 2;
-    const speed = isFloat ? 0.3 + Math.random() * 0.4 : 0;
+    const spd   = isFloat ? 0.1 + Math.random() * 0.2 : 0;
     const b = {
-      el, x, y,
-      vx: isFloat ? Math.cos(angle)*speed : (Math.random()-.5)*1.2,
-      vy: isFloat ? Math.sin(angle)*speed : 0,
-      drag:false, ox:0, oy:0, pvx:0, pvy:0,
-      // gentle drift for float mode
-      ax: isFloat ? (Math.random()-.5)*0.008 : 0,
-      ay: isFloat ? (Math.random()-.5)*0.008 : 0,
+      el,
+      x: pos.x, y: pos.y,
+      vx: isFloat ? Math.cos(angle) * spd : (Math.random() - 0.5) * 1.2,
+      vy: isFloat ? Math.sin(angle) * spd : 0,
+      drag: false, ox: 0, oy: 0, pvx: 0, pvy: 0,
     };
     bodies.push(b);
 
     if (isFloat) {
-      // fade in
       let op = 0;
-      const fadeIn = setInterval(() => {
-        op += 0.05;
-        el.style.opacity = Math.min(op, 1);
-        if (op >= 1) clearInterval(fadeIn);
-      }, 30);
+      const fi = setInterval(() => { op += 0.04; el.style.opacity = Math.min(op, 1); if (op >= 1) clearInterval(fi); }, 40);
     }
 
     el.addEventListener('mouseenter', () => cur.classList.add('hover'));
     el.addEventListener('mouseleave', () => cur.classList.remove('hover'));
     el.addEventListener('mousedown', e => {
       e.preventDefault();
-      b.drag = true;
-      cur.classList.add('drag-cur');
+      b.drag = true; cur.classList.add('drag-cur');
       const r = el.getBoundingClientRect();
-      b.ox = e.clientX - r.left;
-      b.oy = e.clientY - r.top;
+      b.ox = e.clientX - r.left; b.oy = e.clientY - r.top;
       b.vx = 0; b.vy = 0;
     });
   }
@@ -183,55 +180,105 @@ if (char) {
   document.addEventListener('mouseup', () => {
     bodies.forEach(b => {
       if (!b.drag) return;
-      b.drag = false;
-      cur.classList.remove('drag-cur');
-      b.vx = b.pvx * (isFloat ? 0.5 : 0.7);
-      b.vy = b.pvy * (isFloat ? 0.5 : 0.7);
+      b.drag = false; cur.classList.remove('drag-cur');
+      b.vx = b.pvx * 0.6; b.vy = b.pvy * 0.6;
     });
   });
+
+  function resolveCollisions() {
+    for (let i = 0; i < bodies.length; i++) {
+      for (let j = i + 1; j < bodies.length; j++) {
+        const a = bodies[i], b = bodies[j];
+        if (a.drag || b.drag) continue;
+        const dx = (b.x + R) - (a.x + R);
+        const dy = (b.y + R) - (a.y + R);
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const minDist = S * 0.95;
+        if (dist < minDist && dist > 0.01) {
+          const nx = dx / dist, ny = dy / dist;
+          // positional correction — push apart fully
+          const overlap = (minDist - dist);
+          // heavier object (lower = more settled) moves less
+          const aRatio = b.vy < a.vy ? 0.3 : 0.7;
+          a.x -= nx * overlap * (1 - aRatio);
+          a.y -= ny * overlap * (1 - aRatio);
+          b.x += nx * overlap * aRatio;
+          b.y += ny * overlap * aRatio;
+          // elastic collision along normal
+          const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
+          const dot = dvx*nx + dvy*ny;
+          if (dot > 0) {
+            const restitution = isFloat ? 0.65 : 0.42;
+            const friction    = isFloat ? 1.0  : 0.78; // tangential friction on impact
+            const tx = -ny, ty = nx; // tangent
+            const tdot = dvx*tx + dvy*ty;
+            a.vx -= (dot * nx * restitution + tdot * tx * (1-friction)) * (1-aRatio);
+            a.vy -= (dot * ny * restitution + tdot * ty * (1-friction)) * (1-aRatio);
+            b.vx += (dot * nx * restitution + tdot * tx * (1-friction)) * aRatio;
+            b.vy += (dot * ny * restitution + tdot * ty * (1-friction)) * aRatio;
+          }
+          // if nearly at rest on top of each other, add tiny roll nudge
+          if (!isFloat) {
+            const relSpd = Math.sqrt(dvx*dvx+dvy*dvy);
+            if (relSpd < 0.8 && dy < -S*0.3) {
+              // top object rolls off slightly based on overlap offset
+              const rollDir = dx > 0 ? 1 : -1;
+              b.vx += rollDir * 0.15;
+            }
+          }
+        }
+      }
+    }
+  }
 
   function tick() {
     const W = wrap.clientWidth, H = wrap.clientHeight;
     bodies.forEach(b => {
       if (b.drag) { b.el.style.left=b.x+'px'; b.el.style.top=b.y+'px'; return; }
       if (isFloat) {
-        // gentle random drift
-        b.ax += (Math.random()-.5)*0.003;
-        b.ay += (Math.random()-.5)*0.003;
-        b.ax = Math.max(-0.012, Math.min(0.012, b.ax));
-        b.ay = Math.max(-0.012, Math.min(0.012, b.ay));
-        b.vx += b.ax; b.vy += b.ay;
-        // soft speed cap
-        const spd = Math.sqrt(b.vx*b.vx+b.vy*b.vy);
-        if (spd > 0.9) { b.vx*=0.98; b.vy*=0.98; }
+        // one consistent directional drift — like zero-g with a gentle push
+        b.vx += driftAx; b.vy += driftAy;
+        b.vx *= FLOAT_FRIC; b.vy *= FLOAT_FRIC;
+        // speed cap
+        const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+        if (spd > FLOAT_MAX) { b.vx *= FLOAT_MAX/spd; b.vy *= FLOAT_MAX/spd; }
         b.x += b.vx; b.y += b.vy;
-        // wrap edges
-        if (b.x < -S)  b.x = W;
-        if (b.x > W)   b.x = -S;
-        if (b.y < -S)  b.y = H;
-        if (b.y > H)   b.y = -S;
+        // bounce off edges (no wrap — real physics)
+        if (b.x <= 0)   { b.x=0;   b.vx*=-0.6; }
+        if (b.x >= W-S) { b.x=W-S; b.vx*=-0.6; }
+        if (b.y <= 0)   { b.y=0;   b.vy*=-0.6; }
+        if (b.y >= H-S) { b.y=H-S; b.vy*=-0.6; }
       } else {
         b.vy += G; b.vx *= FRIC;
-        b.x  += b.vx; b.y += b.vy;
-        if (b.y >= H-S) { b.y=H-S; b.vy*=-BOUNCE; b.vx*=0.88; if(Math.abs(b.vy)<0.5) b.vy=0; }
-        if (b.x <= 0)   { b.x=0;   b.vx*=-BOUNCE; }
-        if (b.x >= W-S) { b.x=W-S; b.vx*=-BOUNCE; }
+        b.x += b.vx; b.y += b.vy;
+        if (b.y >= H-S) {
+          b.y=H-S;
+          b.vy*=-BOUNCE;
+          b.vx*=0.82;
+          // rolling friction when nearly settled
+          if(Math.abs(b.vy)<1.2) b.vx*=0.88;
+          if(Math.abs(b.vy)<0.5) b.vy=0;
+          if(Math.abs(b.vx)<0.08) b.vx=0;
+        }
+        if (b.x <= 0)   { b.x=0;   b.vx*=-BOUNCE*0.8; }
+        if (b.x >= W-S) { b.x=W-S; b.vx*=-BOUNCE*0.8; }
       }
       b.el.style.left = b.x+'px';
       b.el.style.top  = b.y+'px';
     });
+    resolveCollisions();
     requestAnimationFrame(tick);
   }
   tick();
 
-  const total = isFloat ? 16 : 12;
-  const delay = isFloat ? 150 : 350;
+  const total = isFloat ? 8 : 12;
+  const delay = isFloat ? 400 : 300;
   let count = 0;
   function drop() {
     spawn(); count++;
-    if (count < total) setTimeout(drop, (count < 4 ? 80 : delay) + Math.random() * (isFloat ? 150 : 300));
+    if (count < total) setTimeout(drop, (count < 4 ? 100 : delay) + Math.random() * 300);
   }
-  drop(); // start immediately
+  drop();
 
 
 });
