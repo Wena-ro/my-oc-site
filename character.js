@@ -106,20 +106,10 @@ if (char) {
   const S = 52; // object size
   // gravity physics constants
   const G = 0.18, BOUNCE = 0.45, FRIC = 0.992;
-  // float physics constants — slow drift with one directional pull
-  const FLOAT_DRIFT = 0.0006; // very gentle constant pull direction (like slow solar wind)
-  const FLOAT_FRIC  = 0.9992;
-  const FLOAT_MAX   = 0.55;   // speed cap — slow and dreamy
-
   const wrap   = document.getElementById('wrap');
   const bodies = [];
   const ITEMS  = char.items;
   const R = S / 2; // radius for collision
-
-  // pick a single drift direction for this session (simulates one gravity vector)
-  const driftAngle = Math.random() * Math.PI * 2;
-  const driftAx = Math.cos(driftAngle) * FLOAT_DRIFT;
-  const driftAy = Math.sin(driftAngle) * FLOAT_DRIFT;
 
   function spawnPos() {
     const W = wrap.clientWidth, H = wrap.clientHeight;
@@ -141,7 +131,8 @@ if (char) {
     wrap.appendChild(el);
 
     const angle = Math.random() * Math.PI * 2;
-    const spd   = isFloat ? 0.1 + Math.random() * 0.2 : 0;
+    // float: slow fixed speed in one direction, never changes unless collision
+    const spd = isFloat ? 0.25 + Math.random() * 0.2 : 0;
     const b = {
       el,
       x: pos.x, y: pos.y,
@@ -181,7 +172,17 @@ if (char) {
     bodies.forEach(b => {
       if (!b.drag) return;
       b.drag = false; cur.classList.remove('drag-cur');
-      b.vx = b.pvx * 0.6; b.vy = b.pvy * 0.6;
+      if (isFloat) {
+        // restore original speed after throw, just change direction
+        const throwSpd = Math.sqrt(b.pvx*b.pvx + b.pvy*b.pvy);
+        const origSpd  = Math.sqrt(b.vx*b.vx + b.vy*b.vy) || 0.3;
+        const spd = throwSpd > 0.1 ? Math.min(throwSpd * 0.5, 0.6) : origSpd;
+        const ang = throwSpd > 0.1 ? Math.atan2(b.pvy, b.pvx) : Math.atan2(b.vy, b.vx);
+        b.vx = Math.cos(ang) * spd;
+        b.vy = Math.sin(ang) * spd;
+      } else {
+        b.vx = b.pvx * 0.6; b.vy = b.pvy * 0.6;
+      }
     });
   });
 
@@ -190,40 +191,77 @@ if (char) {
       for (let j = i + 1; j < bodies.length; j++) {
         const a = bodies[i], b = bodies[j];
         if (a.drag || b.drag) continue;
-        const dx = (b.x + R) - (a.x + R);
-        const dy = (b.y + R) - (a.y + R);
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        const minDist = S * 0.95;
-        if (dist < minDist && dist > 0.01) {
-          const nx = dx / dist, ny = dy / dist;
-          // positional correction — push apart fully
-          const overlap = (minDist - dist);
-          // heavier object (lower = more settled) moves less
-          const aRatio = b.vy < a.vy ? 0.3 : 0.7;
-          a.x -= nx * overlap * (1 - aRatio);
-          a.y -= ny * overlap * (1 - aRatio);
-          b.x += nx * overlap * aRatio;
-          b.y += ny * overlap * aRatio;
-          // elastic collision along normal
-          const dvx = a.vx - b.vx, dvy = a.vy - b.vy;
-          const dot = dvx*nx + dvy*ny;
-          if (dot > 0) {
-            const restitution = isFloat ? 0.65 : 0.42;
-            const friction    = isFloat ? 1.0  : 0.78; // tangential friction on impact
-            const tx = -ny, ty = nx; // tangent
-            const tdot = dvx*tx + dvy*ty;
-            a.vx -= (dot * nx * restitution + tdot * tx * (1-friction)) * (1-aRatio);
-            a.vy -= (dot * ny * restitution + tdot * ty * (1-friction)) * (1-aRatio);
-            b.vx += (dot * nx * restitution + tdot * tx * (1-friction)) * aRatio;
-            b.vy += (dot * ny * restitution + tdot * ty * (1-friction)) * aRatio;
-          }
-          // if nearly at rest on top of each other, add tiny roll nudge
-          if (!isFloat) {
-            const relSpd = Math.sqrt(dvx*dvx+dvy*dvy);
-            if (relSpd < 0.8 && dy < -S*0.3) {
-              // top object rolls off slightly based on overlap offset
-              const rollDir = dx > 0 ? 1 : -1;
-              b.vx += rollDir * 0.15;
+
+        // AABB overlap (square boxes)
+        const overlapX = (a.x + S) - b.x;
+        const overlapY = (a.y + S) - b.y;
+        const overlapX2 = (b.x + S) - a.x;
+        const overlapY2 = (b.y + S) - a.y;
+
+        if (overlapX > 0 && overlapX2 > 0 && overlapY > 0 && overlapY2 > 0) {
+          // find minimum penetration axis
+          const penX = Math.min(overlapX, overlapX2);
+          const penY = Math.min(overlapY, overlapY2);
+
+          // which side is b relative to a
+          const fromLeft = b.x > a.x;
+          const fromTop  = b.y > a.y;
+
+          // settled ratio — lower/slower object resists more
+          const aSettled = Math.abs(a.vy) < 0.3 && Math.abs(a.vx) < 0.3;
+          const bSettled = Math.abs(b.vy) < 0.3 && Math.abs(b.vx) < 0.3;
+          const aRatio = bSettled ? 0.15 : (aSettled ? 0.85 : 0.5);
+
+          if (penY < penX) {
+            // vertical collision (stacking)
+            const pen = penY;
+            if (fromTop) {
+              a.y -= pen * (1 - aRatio);
+              b.y += pen * aRatio;
+            } else {
+              a.y += pen * (1 - aRatio);
+              b.y -= pen * aRatio;
+            }
+            // velocity exchange on Y
+            const relVy = a.vy - b.vy;
+            if ((fromTop && relVy < 0) || (!fromTop && relVy > 0)) {
+              if (isFloat) {
+                // zero-g elastic: swap vy components fully
+                const tmp = a.vy; a.vy = b.vy; b.vy = tmp;
+              } else {
+                const restitution = 0.35;
+                const imp = relVy * restitution;
+                a.vy -= imp * (1 - aRatio);
+                b.vy += imp * aRatio;
+                if (fromTop && Math.abs(relVy) > 0.3) {
+                  const centerOffset = (a.x + S/2) - (b.x + S/2);
+                  b.vx -= centerOffset * 0.025;
+                }
+              }
+            }
+          } else {
+            // horizontal collision
+            const pen = penX;
+            if (fromLeft) {
+              a.x -= pen * (1 - aRatio);
+              b.x += pen * aRatio;
+            } else {
+              a.x += pen * (1 - aRatio);
+              b.x -= pen * aRatio;
+            }
+            const relVx = a.vx - b.vx;
+            if ((fromLeft && relVx < 0) || (!fromLeft && relVx > 0)) {
+              if (isFloat) {
+                // zero-g elastic: swap vx components fully
+                const tmp = a.vx; a.vx = b.vx; b.vx = tmp;
+              } else {
+                const restitution = 0.38;
+                const imp = relVx * restitution;
+                a.vx -= imp * (1 - aRatio);
+                b.vx += imp * aRatio;
+                a.vy += (b.vy - a.vy) * 0.08;
+                b.vy += (a.vy - b.vy) * 0.08;
+              }
             }
           }
         }
@@ -236,18 +274,13 @@ if (char) {
     bodies.forEach(b => {
       if (b.drag) { b.el.style.left=b.x+'px'; b.el.style.top=b.y+'px'; return; }
       if (isFloat) {
-        // one consistent directional drift — like zero-g with a gentle push
-        b.vx += driftAx; b.vy += driftAy;
-        b.vx *= FLOAT_FRIC; b.vy *= FLOAT_FRIC;
-        // speed cap
-        const spd = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
-        if (spd > FLOAT_MAX) { b.vx *= FLOAT_MAX/spd; b.vy *= FLOAT_MAX/spd; }
+        // pure inertia — no acceleration, constant velocity
         b.x += b.vx; b.y += b.vy;
-        // bounce off edges (no wrap — real physics)
-        if (b.x <= 0)   { b.x=0;   b.vx*=-0.6; }
-        if (b.x >= W-S) { b.x=W-S; b.vx*=-0.6; }
-        if (b.y <= 0)   { b.y=0;   b.vy*=-0.6; }
-        if (b.y >= H-S) { b.y=H-S; b.vy*=-0.6; }
+        // elastic wall bounce — preserve speed exactly
+        if (b.x <= 0)   { b.x=0;   b.vx=Math.abs(b.vx); }
+        if (b.x >= W-S) { b.x=W-S; b.vx=-Math.abs(b.vx); }
+        if (b.y <= 0)   { b.y=0;   b.vy=Math.abs(b.vy); }
+        if (b.y >= H-S) { b.y=H-S; b.vy=-Math.abs(b.vy); }
       } else {
         b.vy += G; b.vx *= FRIC;
         b.x += b.vx; b.y += b.vy;
