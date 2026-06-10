@@ -135,14 +135,19 @@ M.World.add(world,[
 var labelMap={}, physBodies=[], lb=document.getElementById('lb'), idx=0;
 
 function addObj(){
-  var s=52, cx2=W/2, gap=140, x, y;
+  var s=52, cx2=W/2, gap=110, x, y;
   if(ch.float){
-    x=gap+Math.random()*(W-gap*2); y=60+Math.random()*(H-120);
+    // float: spread across whole screen avoiding center illust
+    if(Math.random()<.5) x=10+Math.random()*Math.max(20,cx2-gap-s);
+    else x=(cx2+gap)+Math.random()*Math.max(20,W-cx2-gap-s);
+    x=Math.max(10,Math.min(W-s-10,x));
+    y=30+Math.random()*(H-100);
   } else {
-    x=Math.random()<.5
-      ? 20+Math.random()*Math.max(10,cx2-gap-s)
-      : (cx2+gap)+Math.random()*Math.max(10,W-cx2-gap-s);
-    x=Math.max(20,Math.min(W-s-20,x)); y=-80;
+    // gravity: drop from top, left or right of center illust
+    if(Math.random()<.5) x=10+Math.random()*Math.max(20,cx2-gap-s);
+    else x=(cx2+gap)+Math.random()*Math.max(20,W-cx2-gap-s);
+    x=Math.max(10,Math.min(W-s-10,x));
+    y=-80;
   }
   var b=M.Bodies.rectangle(x+s/2,y+s/2,s,s,{
     friction:0.7,frictionAir:ch.float?.004:.01,restitution:0.2,density:.002
