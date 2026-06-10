@@ -7,7 +7,7 @@ document.addEventListener('mousemove', e => { cx = e.clientX; cy = e.clientY; })
 // ── 角色数据 ──────────────────────────────────────────────
 const CHARACTERS = {
   'char-a': {
-    name:'角色 A', en:'Character A', world:'黑白灰', bg:'#dbd8d2', image:'',
+    name:'伊娜', en:'Character A', world:'黑白灰', bg:'#dbd8d2', image:'',
     age:'—', height:'—', birth:'—', gender:'—', tags:'待填入 · 待填入', bio:'角色简介待填入。',
     float: false,
     items:['🗡️','🩶','🌫️','🕯️','📌','🪡','🧷','⛓️','🖤','🪦'],
@@ -73,9 +73,7 @@ const params = new URLSearchParams(window.location.search);
 const id     = params.get('id') || 'char-a';
 const char   = CHARACTERS[id];
 
-document.addEventListener('DOMContentLoaded', function () {
-  if (!char) return;
-
+if (char) {
   document.title = char.name + ' — OC WORLDS';
   document.getElementById('charName').textContent   = char.name;
   document.getElementById('charEn').textContent     = char.en;
@@ -316,5 +314,6 @@ document.addEventListener('DOMContentLoaded', function () {
       setTimeout(drop, delay + Math.random() * 200);
     }
   }
-  drop();
-});
+  // wait one frame so layout is ready
+  requestAnimationFrame(() => requestAnimationFrame(drop));
+}
