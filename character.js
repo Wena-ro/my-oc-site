@@ -110,14 +110,18 @@ if (char) {
 
   function spawn() {
     const W = wrap.clientWidth, H = wrap.clientHeight;
+    const cx = W / 2;
+    const illustHalf = 120; // half illust width + buffer
     let x, y;
     if (isFloat) {
-      x = Math.random() * (W - S);
+      // avoid center illust zone
+      if (Math.random() < 0.5) x = Math.random() * (cx - illustHalf - S);
+      else x = (cx + illustHalf) + Math.random() * (W - cx - illustHalf - S);
+      x = Math.max(0, Math.min(W - S, x));
       y = Math.random() * (H - S);
     } else {
-      const cx = W / 2;
-      if (Math.random() < 0.5) x = Math.random() * (cx - 110 - S);
-      else x = (cx + 110) + Math.random() * (W - cx - 110 - S);
+      if (Math.random() < 0.5) x = Math.random() * (cx - illustHalf - S);
+      else x = (cx + illustHalf) + Math.random() * (W - cx - illustHalf - S);
       x = Math.max(0, Math.min(W - S, x));
       y = -60;
     }
