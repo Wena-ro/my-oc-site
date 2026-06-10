@@ -8,7 +8,7 @@ document.addEventListener('mousemove', e => { cx = e.clientX; cy = e.clientY; })
 const CHARACTERS = {
   'char-a': {
     name:'伊娜', en:'Character A', world:'黑白灰', bg:'#dbd8d2', image:'',
-    age:'—', height:'—', birth:'—', gender:'—', tags:'待填入 · 待填入', bio:'角色简介待填入。',
+    age:'20', height:'—', birth:'—', gender:'—', tags:'待填入 · 待填入', bio:'角色简介待填入。',
     float: false,
     items:['🗡️','🩶','🌫️','🕯️','📌','🪡','🧷','⛓️','🖤','🪦'],
   },
