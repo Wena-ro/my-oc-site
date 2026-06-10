@@ -4,125 +4,85 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>OC WORLDS</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Noto+Serif+SC:wght@300;400;700&family=Space+Mono&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,400&family=Noto+Serif+SC:wght@300;400;700&family=Space+Mono&display=swap" rel="stylesheet"/>
   <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;overflow:hidden;cursor:none}
-  body{background:#f5f3f0;font-family:'Noto Serif SC',serif;color:#2a2a2a}
+  html,body{height:100%;overflow:hidden;cursor:none;background:#fff;font-family:'Noto Serif SC',serif;color:#111}
+  .cursor{position:fixed;pointer-events:none;z-index:9999;width:11px;height:11px;border:1.5px solid #333;border-radius:50%;transform:translate(-50%,-50%);transition:width .18s,height .18s}
+  .cursor.hover{width:19px;height:19px;border-color:#888}
+  .cursor.drag-cur{width:7px;height:7px;background:#333;border-color:#333}
+  .back{position:fixed;top:20px;left:24px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;color:#bbb;text-decoration:none;z-index:100;transition:color .2s}
+  .back:hover{color:#555}
 
-  .cursor{position:fixed;pointer-events:none;z-index:9999;width:11px;height:11px;border:1.5px solid #555;border-radius:50%;transform:translate(-50%,-50%);transition:width .18s,height .18s}
+  .wrap{position:relative;width:100%;height:100vh;overflow:hidden;background:#fff}
 
-  .back{
-    position:fixed;top:22px;left:28px;
-    font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.2em;
-    color:#bbb;text-decoration:none;z-index:100;
-    transition:color .2s;
-  }
-  .back:hover{color:#666}
-
-  .page{
-    display:grid;
-    grid-template-columns:320px 1fr;
-    height:100vh;
-  }
-
-  /* ── LEFT PANEL ── */
-  .left{
-    display:flex;flex-direction:column;
-    padding:64px 32px 32px;
-    height:100vh;
-  }
-  .portrait-img{
-    flex:1;
-    min-height:0;
-    border-radius:20px;
-    background:#dbd8d2;
+  /* Illustration — centered */
+  .illust{
+    position:absolute;left:50%;transform:translateX(-50%);
+    bottom:0;width:200px;height:88vh;
+    background:#ece9e3;
+    border-radius:8px 8px 0 0;
     display:flex;align-items:center;justify-content:center;
-    overflow:hidden;
-    margin-bottom:20px;
+    z-index:2;overflow:hidden;
   }
-  .portrait-img img{width:100%;height:100%;object-fit:cover}
-  .portrait-img .placeholder-icon{opacity:.18}
-  .char-name{font-size:32px;font-weight:700;letter-spacing:.02em;line-height:1.1;margin-bottom:6px}
-  .char-en{font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:#aaa;letter-spacing:.08em;margin-bottom:14px}
-  .char-world{
-    display:inline-block;
-    font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.18em;
-    background:#e8e4de;color:#888;
-    padding:5px 14px;border-radius:20px;width:fit-content;
+  .illust img{width:100%;height:100%;object-fit:cover;object-position:top}
+  .illust .ph{opacity:.18}
+
+  /* Profile — right of center */
+  .profile{
+    position:absolute;
+    left:50%;top:50%;
+    transform:translate(130px,-50%);
+    width:210px;
+    z-index:2;
   }
+  .pl{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;color:#bbb;border-bottom:1.5px solid #111;padding-bottom:8px;margin-bottom:16px}
+  .wt{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.15em;color:#bbb;margin-bottom:3px}
+  .cn{font-size:28px;font-weight:700;line-height:1;margin-bottom:3px}
+  .ce{font-family:'Playfair Display',serif;font-style:italic;font-size:13px;color:#aaa;margin-bottom:18px}
+  .row{display:grid;grid-template-columns:60px 1fr;padding:9px 0;border-bottom:0.5px solid #e8e8e8;align-items:baseline}
+  .rl{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:.1em;color:#bbb}
+  .rv{font-size:14px;font-weight:700}
+  .rv.s{font-size:12px;font-weight:400;color:#777;line-height:1.8}
 
-  /* ── RIGHT PANEL ── */
-  .right{
-    padding:64px 48px 32px;
-    height:100vh;
-    overflow-y:auto;
-    display:flex;flex-direction:column;gap:32px;
-  }
-  .right::-webkit-scrollbar{width:4px}
-  .right::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px}
-
-  .section-label{
-    font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.22em;
-    color:#bbb;margin-bottom:10px;
-  }
-
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .stat{background:#eee;border-radius:12px;padding:14px 16px}
-  .stat-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:.15em;color:#aaa;margin-bottom:5px}
-  .stat-val{font-size:16px;font-weight:400}
-
-  .tags{display:flex;flex-wrap:wrap;gap:8px}
-  .tag{font-size:12px;font-weight:300;background:#eee;color:#666;padding:5px 14px;border-radius:20px}
-
-  .bio{font-size:14px;font-weight:300;line-height:2;color:#555;max-width:520px}
-
-  .gallery{display:flex;gap:10px;flex-wrap:wrap}
-  .gallery-thumb{
-    width:100px;height:100px;border-radius:12px;
-    background:#e2dfd9;
+  /* Falling objects */
+  .obj{
+    position:absolute;width:52px;height:52px;
+    border-radius:14px;cursor:none;
     display:flex;align-items:center;justify-content:center;
-    overflow:hidden;flex-shrink:0;
+    font-size:26px;
+    background:rgba(255,255,255,0.85);
+    border:0.5px solid #e8e8e8;
+    user-select:none;z-index:5;
+    backdrop-filter:blur(4px);
+    transition:box-shadow .15s;
   }
-  .gallery-thumb img{width:100%;height:100%;object-fit:cover}
-  .gallery-thumb svg{opacity:.22}
+  .obj:hover{box-shadow:0 4px 20px rgba(0,0,0,.08)}
   </style>
 </head>
 <body>
   <div class="cursor" id="cur"></div>
   <a class="back" href="index.html">← index</a>
-  <div class="page">
-    <div class="left">
-      <div class="portrait-img" id="portraitImg">
-        <svg class="placeholder-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1"><circle cx="12" cy="8" r="5"/><path d="M3 21c0-5 4-9 9-9s9 4 9 9"/></svg>
-      </div>
-      <div class="char-name" id="charName">—</div>
-      <div class="char-en" id="charEn">—</div>
-      <div class="char-world" id="charWorld">—</div>
+
+  <div class="wrap" id="wrap">
+    <div class="illust" id="illust">
+      <svg class="ph" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width=".8"><circle cx="12" cy="7" r="5"/><path d="M2 22c0-6 4.5-10 10-10s10 4 10 10"/></svg>
     </div>
-    <div class="right">
-      <div>
-        <div class="section-label">PROFILE</div>
-        <div class="stats">
-          <div class="stat"><div class="stat-label">AGE</div><div class="stat-val" id="statAge">—</div></div>
-          <div class="stat"><div class="stat-label">HEIGHT</div><div class="stat-val" id="statHeight">—</div></div>
-          <div class="stat"><div class="stat-label">ROLE</div><div class="stat-val" id="statRole">—</div></div>
-        </div>
-      </div>
-      <div>
-        <div class="section-label">KEYWORDS</div>
-        <div class="tags" id="tags"></div>
-      </div>
-      <div>
-        <div class="section-label">ABOUT</div>
-        <div class="bio" id="bio">—</div>
-      </div>
-      <div>
-        <div class="section-label">GALLERY</div>
-        <div class="gallery" id="gallery"></div>
-      </div>
+
+    <div class="profile">
+      <div class="pl">PROFILE</div>
+      <div class="wt" id="charWorld">—</div>
+      <div class="cn" id="charName">—</div>
+      <div class="ce" id="charEn">—</div>
+      <div class="row"><span class="rl">年龄</span><span class="rv" id="statAge">—</span></div>
+      <div class="row"><span class="rl">身高</span><span class="rv" id="statHeight">—</span></div>
+      <div class="row"><span class="rl">生日</span><span class="rv" id="statBirth">—</span></div>
+      <div class="row"><span class="rl">性别</span><span class="rv" id="statGender">—</span></div>
+      <div class="row"><span class="rl">关键词</span><span class="rv s" id="statTags">—</span></div>
+      <div class="row"><span class="rl">简介</span><span class="rv s" id="bio">—</span></div>
     </div>
   </div>
+
   <script src="character.js"></script>
 </body>
 </html>
