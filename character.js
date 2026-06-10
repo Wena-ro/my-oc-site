@@ -1,3 +1,9 @@
+// ── cursor ────────────────────────────────────────────────
+const cur = document.getElementById('cur');
+let cx = 0, cy = 0;
+document.addEventListener('mousemove', e => { cx=e.clientX; cy=e.clientY; });
+(function loop(){ cur.style.left=cx+'px'; cur.style.top=cy+'px'; requestAnimationFrame(loop); })();
+
 // ── 角色数据 ──────────────────────────────────────────────
 // 填入角色资料，images 填图片路径（放在 assets/images/ 里）
 // items 是掉落的小物件，可以换成跟角色主题相关的 emoji
@@ -218,14 +224,8 @@ if (char) {
   let count = 0;
   function drop() {
     spawn(); count++;
-    if (count < total) setTimeout(drop, delay + Math.random() * (isFloat ? 200 : 400));
+    if (count < total) setTimeout(drop, (count < 4 ? 80 : delay) + Math.random() * (isFloat ? 150 : 300));
   }
-  setTimeout(drop, 300);
+  drop(); // start immediately
 
 }
-
-// ── cursor ────────────────────────────────────────────────
-const cur = document.getElementById('cur');
-let cx = 0, cy = 0;
-document.addEventListener('mousemove', e => { cx=e.clientX; cy=e.clientY; });
-(function loop(){ cur.style.left=cx+'px'; cur.style.top=cy+'px'; requestAnimationFrame(loop); })();
