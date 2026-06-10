@@ -82,6 +82,7 @@ const params = new URLSearchParams(window.location.search);
 const id     = params.get('id') || 'char-a';
 const char   = CHARACTERS[id];
 
+document.addEventListener('DOMContentLoaded', function() {
 if (char) {
   document.title = char.name + ' — OC WORLDS';
   document.getElementById('charName').textContent   = char.name;
@@ -228,4 +229,5 @@ if (char) {
   }
   drop(); // start immediately
 
-}
+
+});
