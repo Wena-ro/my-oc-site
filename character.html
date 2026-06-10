@@ -23,9 +23,6 @@
   /* canvas fills screen, handles mouse */
   #c{position:fixed;top:0;left:0;z-index:10}
 
-  /* emoji labels above canvas */
-  #lb{position:fixed;top:0;left:0;pointer-events:none;z-index:11}
-  .lbl{position:absolute;font-size:26px;transform:translate(-50%,-50%);pointer-events:none;line-height:1}
 
   /* UI above everything, no pointer events except back link */
   #ui{position:fixed;top:0;left:0;width:100%;height:100%;z-index:12;pointer-events:none}
@@ -53,7 +50,6 @@
 <div id="cur"></div>
 <a class="back" href="index.html">← index</a>
 <canvas id="c"></canvas>
-<div id="lb"></div>
 
 <div id="ui">
   <div class="illust" id="illust">
@@ -132,7 +128,7 @@ M.World.add(world,[
   M.Bodies.rectangle(W/2,-25,W+4,50,{isStatic:true})
 ]);
 
-var labelMap={}, physBodies=[], lb=document.getElementById('lb'), idx=0;
+var physBodies=[], emojiList=[], idx=0;
 
 function addObj(){
   var s=52, cx2=W/2, gap=110, x, y;
@@ -158,11 +154,7 @@ function addObj(){
   }
   M.World.add(world,b);
   physBodies.push(b);
-  var el=document.createElement('div');
-  el.className='lbl';
-  el.textContent=ch.items[idx%ch.items.length]; idx++;
-  lb.appendChild(el);
-  labelMap[b.id]=el;
+  emojiList.push(ch.items[idx%ch.items.length]); idx++;
 }
 
 // mouse drag
@@ -178,22 +170,21 @@ M.Events.on(mc,'enddrag',function(){cur.classList.remove('d');});
 function render(){
   M.Engine.update(engine,1000/60);
   ctx.clearRect(0,0,W,H);
-  physBodies.forEach(function(b){
+  physBodies.forEach(function(b,i){
     var p=b.position,a=b.angle,s=26;
     ctx.save();
     ctx.translate(p.x,p.y); ctx.rotate(a);
     ctx.beginPath();
-    ctx.roundRect(-s,-s,s*2,s*2,10);
+    ctx.rect(-s,-s,s*2,s*2);
     ctx.fillStyle='rgba(255,255,255,0.92)';
     ctx.fill();
     ctx.strokeStyle='#e0e0e0';
     ctx.lineWidth=1; ctx.stroke();
+    ctx.font='26px serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(emojiList[i]||'',0,2);
     ctx.restore();
-    var el=labelMap[b.id];
-    if(el){
-      el.style.left=p.x+'px'; el.style.top=p.y+'px';
-      el.style.transform='translate(-50%,-50%) rotate('+a+'rad)';
-    }
   });
   requestAnimationFrame(render);
 }
